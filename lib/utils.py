@@ -59,7 +59,11 @@ def minsec_to_ms(minsec: str):
     Convert m.ss format string to milliseconds
     """
 
-    mins = int(minsec.split(".")[0])
-    secs = int(minsec.split(".")[1])
+    if("." in minsec):
+        mins = int(minsec.split(".")[0])
+        secs = int(minsec.split(".")[1])
+    else:
+        mins = int(minsec.split(":")[0])
+        secs = int(minsec.split(":")[1])
 
     return float((mins * 60 + secs) * 1000)
