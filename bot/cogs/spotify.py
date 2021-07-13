@@ -163,7 +163,7 @@ class SpotifyCog(commands.Cog):
                                 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn'}
                                 YDL_OPTIONS = {'format': 'bestaudio/best', 'noplaylist': 'True'}
                                 with YoutubeDL(YDL_OPTIONS) as ydl:
-                                    url = "https://www.youtube.com" + vidID
+                                    url = "https://www.youtube.com/watch?v=" + vidID
                                     info = ydl.extract_info(url, download=False)
                                     I_URL = info['formats'][0]['url']
                                     self.url = I_URL
