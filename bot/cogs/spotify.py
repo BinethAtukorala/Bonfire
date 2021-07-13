@@ -20,6 +20,7 @@ from youtube_dl import YoutubeDL
 
 from lib import utils
 
+from ytmusicapi import YTMusic
 
 
 class SpotifyCog(commands.Cog):
@@ -55,7 +56,7 @@ class SpotifyCog(commands.Cog):
         self.stop = True
         self.alreadyListening = False
         self.currentTrackID = None
-
+        self.url = None
         self.auth_token = None
 
         self.get_token()
@@ -155,25 +156,8 @@ class SpotifyCog(commands.Cog):
                             # Search Youtube for matching song
                             results = youtube_search.YoutubeSearch(f"{spotifyTrackMetaData['name']} {spotifyTrackMetaData['artists'][0]['name']}", max_results=3).to_dict()
 
-                            vidID = None
-                            difference = 100000000000000000000
-
-                            for video in results:
-                                tmpID = video["url_suffix"]
-                                if (video["duration"] == utils.ms_to_minsec(spotifyTrackMetaData["duration_ms"])):
-                                    diff = 0
-                                    vidID = tmpID
-                                    break
-                                diff = abs(float(spotifyTrackMetaData["duration_ms"]) - utils.minsec_to_ms(video["duration"]))
-
-                                print(f"Difference: { abs(float(spotifyTrackMetaData['duration_ms'])) } - { abs(utils.minsec_to_ms(video['duration']))} = {diff} : {video['title']}")
-                                if(diff < difference):
-                                    difference = diff
-                                    vidID = tmpID
-                                elif("official" in video['title'].lower()):
-                                    difference = diff
-                                    vidID = tmpID
-                            print(vidID)
+                            vidID = YTMusic().search(f"{spotifyTrackMetaData['name']} {spotifyTrackMetaData['artists'][0]['name']}")[0]['videoId']
+                            
                             # Play song if a proper match is found
                             if(vidID != None):
                                 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn'}
@@ -182,10 +166,16 @@ class SpotifyCog(commands.Cog):
                                     url = "https://www.youtube.com" + vidID
                                     info = ydl.extract_info(url, download=False)
                                     I_URL = info['formats'][0]['url']
+                                    self.url = I_URL
                                     source = discord.FFmpegPCMAudio(I_URL, **FFMPEG_OPTIONS)
                                     voice_client.play(discord.PCMVolumeTransformer(source, volume=1.0))
 
-                            break
+                    elif(self.currentTrackID != None):
+                        voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+                        if(not(voice_client.is_playing()) and self.url != None):
+                            source = discord.FFmpegPCMAudio(self.url, **FFMPEG_OPTIONS)
+                            voice_client.play(discord.PCMVolumeTransformer(source, volume=1.0))
+                    break
             await asyncio.sleep(1)
         self.alreadyListening = False
     
