@@ -1,9 +1,11 @@
+# Discord Imports
+
 import discord
 from discord.ext import commands
 from discord import Spotify
 import asyncio
 
-import pprint
+# Other imports
 
 import datetime
 import requests
@@ -20,10 +22,14 @@ from lib import utils
 
 class SpotifyCog(commands.Cog):
     """
-    Spotify listen along commands and listeners
+    Spotify listen along, commands and listeners
     """
 
     def get_token(self):
+        """
+        Refresh Spotify API Token
+        """
+
         spotifyConfigs = utils.get_spotify_config()
 
         client_creds = base64.b64encode(f"{spotifyConfigs[0]}:{spotifyConfigs[1]}".encode()).decode()
@@ -55,47 +61,64 @@ class SpotifyCog(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, (commands.MissingAnyRole, commands.MissingRole)):
-            await ctx.send("Sorry, you don't have the necessary permissions to run this command.")
+            await ctx.send(embed=discord.Embed(title="⚠  No Permissions", description="Sorry, you don't have the necessary permissions to run this command."))
 
     @commands.command(name="pair")
     async def pair(self, ctx, *args, **kwargs):
-        if(len(args) != 1):
-            if(self.current_user):
-                await ctx.send(f"**{self.current_user.name}** is already paired to the bot")
-            else:
-                self.current_user = ctx.author
-                await ctx.send(f"Paired to {self.current_user.name}")
+        """
+        Pair with a user to listen to his Spotify activity.
+        """
+        if(self.current_user):
+            await ctx.send(embed=discord.Embed(title="👌  Already paired", description=f"**{self.current_user.name}** is already paired to the bot"))
         else:
-            if(self.current_user):
-                await ctx.send(f"**{self.current_user.name}** is already paired to the bot")
+            if(len(args) != 1):
+                self.current_user = ctx.author
+
             else:
                 self.current_user = ctx.guild.get_member(int(args[0]))
-                await ctx.send(f"Paired to {self.current_user.name}")
+            
+            await ctx.send(embed=discord.Embed(title="✅  Paired!", description=f"Paired to {self.current_user.name}"))
 
     
     @commands.command(name="unpair")
     async def unpair(self, ctx):
-        if(self.current_user == ctx.author):
+        """
+        Unpair with currently paired user.
+        """
+        if(self.current_user != None):
             self.current_user = None
-            await ctx.send(f"**{ctx.author.name}** unpaired.")
+            await ctx.send(embed=discord.Embed(title="✅  Unpaired!", description=f"**{ctx.author.name}** unpaired."))
         else:
-            await ctx.send(f"**{ctx.author.name}** is not paired")
+            await ctx.send(embed=discord.Embed(title="🤔  Not paired", description=f"**{ctx.author.name}** is not paired to be unpaired."))
 
     @commands.command(name="start")
     async def start(self, ctx):
+        """
+        Start playing Spotify tracks
+        """
         self.stop = False
         if(not(self.alreadyListening)):
-            alreadyListening = True
-            asyncio.ensure_future(self.listen(ctx))       
+            if(self.current_user != None):
+                alreadyListening = True
+                await ctx.send(embed=discord.Embed(title="🎧  Started listening!", description=f"Started listening to, and playing **{self.current_user.name}**'s Spotify."))
+                asyncio.ensure_future(self.listen(ctx))       
+            else:
+                await ctx.send(embed=discord.Embed(title="⛔  Not paired", description=f"No one is paired to be listened."))
+        else:
+            await ctx.send(embed=discord.Embed(title="🎧  Started listening!", description=f"Started listening to, and playing **{self.current_user.name}**'s Spotify."))
         
         
     async def listen(self, ctx):
+        """
+        Async function to playback music
+        """
         while(not(self.stop) and (self.current_user != None)):
             for activity in self.current_user.activities:
                 if isinstance(activity, Spotify):
                     if(self.currentTrackID != activity.track_id):
                         self.currentTrackID = activity.track_id
 
+                        # Check if user is connected to a voice channel
                         if ctx.message.author.voice == None:
                             await ctx.send("No Voice Channel")
                             return
@@ -106,23 +129,26 @@ class SpotifyCog(commands.Cog):
                         
                         voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
 
+                        # Connect to voice channel
                         if voice_client == None:
                             voice_client = await voice.connect()
                         else:
                             await voice_client.move_to(channel)
 
+                        # Stop already playing track
                         voice_client.stop()
                         
                         startTime = activity.start + datetime.timedelta(hours=5, minutes=30)
                         trackID = activity.track_id
-                
+
+                        # Get Spotify track metadata
                         response = requests.get(f"https://api.spotify.com/v1/tracks/{trackID}", headers={"Authorization":f"Bearer {self.auth_token}"})
                         spotifyTrackMetaData = response.json()
 
                         if('error' in spotifyTrackMetaData):
                             self.get_token()
                         else:
-
+                            # Search Youtube for matching song
                             results = youtube_search.YoutubeSearch(f"{spotifyTrackMetaData['name']} {spotifyTrackMetaData['artists'][0]['name']}", max_results=5).to_dict()
 
                             vidID = None
@@ -141,6 +167,7 @@ class SpotifyCog(commands.Cog):
                                     difference = diff
                                     vidID = tmpID
                             print(vidID)
+                            # Play song if a proper match is found
                             if(vidID != None):
                                 song = pafy.new("https://www.youtube.com" + vidID)
                                 audio = song.getbestaudio()
@@ -162,7 +189,7 @@ class SpotifyCog(commands.Cog):
         if voice_client != None:
             voice_client.stop()
             await voice_client.disconnect()
-        await ctx.send("Stopped")
+        await ctx.send(embed=discord.Embed(title="🔇  Stopped", description="Stopped listening to Spotify."))
 
 def setup(bot):
     bot.add_cog(SpotifyCog(bot))
