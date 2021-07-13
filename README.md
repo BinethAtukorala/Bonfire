@@ -10,7 +10,7 @@ By "pairing" the bot to someone, it takes the Spotify activity details and plays
 
 ## How to get the bot?
 
-How can I invite Binfire to my Discord server?
+### How can I invite Bpnfire to my Discord server?
 
 Unfortunately, due to how this bot is built, it cannot be invited. Because, as of the moment, it cannot handle multiple servers at once. However, you can quickly install the bot and get it up and running on either your personal computer or a server.
 
