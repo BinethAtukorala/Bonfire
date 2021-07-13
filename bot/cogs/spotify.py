@@ -16,6 +16,8 @@ import pafy, youtube_search
 
 import base64
 
+from youtube_dl import YoutubeDL
+
 from lib import utils
 
 
@@ -164,19 +166,24 @@ class SpotifyCog(commands.Cog):
                                     break
                                 diff = abs(float(spotifyTrackMetaData["duration_ms"]) - utils.minsec_to_ms(video["duration"]))
 
-                                print(f"Difference: { abs(float(spotifyTrackMetaData['duration_ms'])) } - { abs(utils.minsec_to_ms(video['duration']))} = {diff}")
+                                print(f"Difference: { abs(float(spotifyTrackMetaData['duration_ms'])) } - { abs(utils.minsec_to_ms(video['duration']))} = {diff} : {video['title']}")
                                 if(diff < difference):
+                                    difference = diff
+                                    vidID = tmpID
+                                elif("official" in video['title'].lower()):
                                     difference = diff
                                     vidID = tmpID
                             print(vidID)
                             # Play song if a proper match is found
                             if(vidID != None):
-                                song = pafy.new("https://www.youtube.com" + vidID)
-                                print(2)
-                                audio = song.getbestaudio()
                                 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn'}
-                                source = discord.FFmpegPCMAudio(audio.url, **FFMPEG_OPTIONS)
-                                voice_client.play(discord.PCMVolumeTransformer(source, volume=0.5))
+                                YDL_OPTIONS = {'format': 'bestaudio/best', 'noplaylist': 'True'}
+                                with YoutubeDL(YDL_OPTIONS) as ydl:
+                                    url = "https://www.youtube.com" + vidID
+                                    info = ydl.extract_info(url, download=False)
+                                    I_URL = info['formats'][0]['url']
+                                    source = discord.FFmpegPCMAudio(I_URL, **FFMPEG_OPTIONS)
+                                    voice_client.play(discord.PCMVolumeTransformer(source, volume=1.0))
 
                             break
             await asyncio.sleep(1)
@@ -186,6 +193,7 @@ class SpotifyCog(commands.Cog):
     async def stop(self, ctx):
         self.stop = True
         self.alreadyListening = False
+        self.currentTrackID = None
 
         voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
 
