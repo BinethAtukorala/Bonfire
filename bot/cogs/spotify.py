@@ -145,11 +145,13 @@ class SpotifyCog(commands.Cog):
                         response = requests.get(f"https://api.spotify.com/v1/tracks/{trackID}", headers={"Authorization":f"Bearer {self.auth_token}"})
                         spotifyTrackMetaData = response.json()
 
+                        print(1)
+
                         if('error' in spotifyTrackMetaData):
                             self.get_token()
                         else:
                             # Search Youtube for matching song
-                            results = youtube_search.YoutubeSearch(f"{spotifyTrackMetaData['name']} {spotifyTrackMetaData['artists'][0]['name']}", max_results=5).to_dict()
+                            results = youtube_search.YoutubeSearch(f"{spotifyTrackMetaData['name']} {spotifyTrackMetaData['artists'][0]['name']}", max_results=3).to_dict()
 
                             vidID = None
                             difference = 100000000000000000000
@@ -170,10 +172,11 @@ class SpotifyCog(commands.Cog):
                             # Play song if a proper match is found
                             if(vidID != None):
                                 song = pafy.new("https://www.youtube.com" + vidID)
+                                print(2)
                                 audio = song.getbestaudio()
                                 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn'}
                                 source = discord.FFmpegPCMAudio(audio.url, **FFMPEG_OPTIONS)
-                                voice_client.play(source)
+                                voice_client.play(discord.PCMVolumeTransformer(source, volume=0.5))
 
                             break
             await asyncio.sleep(1)
